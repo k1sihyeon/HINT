@@ -1,0 +1,4 @@
+﻿sensor,zone,temp,humidity,status
+S1,A,23.0,55,정상
+S2,A,34.2,60,주의
+S3,B,41.0,58,위험
