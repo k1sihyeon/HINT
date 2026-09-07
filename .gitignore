@@ -1,6 +1,51 @@
 */output/
 .vscode/
 
+# ==========================================
+# AURIX Development Studio / Eclipse Toolchains
+# ==========================================
+
+.ads/
+
+# 1. Ignore Build Outputs (Compiler/Linker artifacts)
+# Usually generated under Debug, Release, or specific target configurations
+[Dd]ebug/
+[Rr]elease/
+*.elf
+*.hex
+*.mot
+*.map
+*.o
+*.obj
+*.d
+*.src
+*.su
+
+# 2. Ignore IDE Local & User-Specific Files
+# Eclipse-based tools save individual window states and personal configurations here
+.metadata/
+.recommenders/
+RemoteSystemsTempFiles/
+*.launch
+.settings/org.eclipse.cdt.core.prefs
+.settings/org.eclipse.cdt.managedbuilder.core.prefs
+.settings/org.eclipse.core.runtime.prefs
+
+# 3. Ignore Debugger Logs and Cache
+# Generated during target flashing or simulation runs
+*.log
+*.tmp
+.launches/
+.cache/
+
+# ==========================================
+# Files you MUST KEEP (Do NOT ignore)
+# ==========================================
+# !.project
+# !.cproject
+# !.settings/   <-- It's best to keep compiler paths, but ignore user layout prefs above
+
+
 ## Cpp
 # Prerequisites
 *.d
