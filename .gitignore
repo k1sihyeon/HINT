@@ -6,6 +6,7 @@
 # ==========================================
 
 .ads/
+*/TriCore Debug (TASKING)/
 
 # 1. Ignore Build Outputs (Compiler/Linker artifacts)
 # Usually generated under Debug, Release, or specific target configurations
