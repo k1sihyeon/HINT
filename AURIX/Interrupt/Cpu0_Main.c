@@ -37,11 +37,19 @@
 #define PORT10_OUTPUT           (*(volatile unsigned int *)(PORT10_BASE_ADDRESS))
 #define PORT10_OMR              (*(volatile unsigned int *)(PORT10_BASE_ADDRESS + 0x4))
 
+#define PC0                     3
+
 #define PC1                     11
 #define PS1                     1
 #define PCL1                    17
 
+#define PC2                     19
+#define PS2                     2
+#define PCL2                    18
+
 #define SCU_BASE_ADDRESS        (0xF0036000)
+
+// #define SCU_EICR0               (*(volatile unsigned int *)(SCU_BASE_ADDRESS + 0x210))
 #define SCU_EICR1               (*(volatile unsigned int *)(SCU_BASE_ADDRESS + 0x214))
 #define SCU_IGCR0               (*(volatile unsigned int *)(SCU_BASE_ADDRESS + 0x22C))
 
@@ -50,6 +58,12 @@
 #define EIEN0                   11
 #define INP0                    12
 #define IGP0                    14
+
+#define EXIS1                   20
+#define FEN1                    24
+#define EIEN1                   27
+#define INP1                    28
+#define IGP1                    30
 
 #define SRC_BASE_ADDRESS        (0xF0038000)
 #define SRC_SCU_ERU0            (*(volatile unsigned int *)(SRC_BASE_ADDRESS + 0xCD4))
@@ -60,45 +74,75 @@
 
 IfxCpu_syncEvent cpuSyncEvent = 0;
 
+// switch 1 - pin D2 - Pin 2.0 // Digital pin 2 (PWM) PWML.3 P2.0 // ERS3 - In32(REQ6) - third input // EICR ??
+// switch 2 - pin D3 - Pin 2.1 // Digital pin 3 (PWM) PWML.4 P2.1 // ERS2 - In21(REQ14) - second input // EICR 1 - 001b
+
 
 __interrupt(0x0F)   __vector_table(0)
 void ISR0(void) {
-    PORT10_OMR |= ((0x1 << PCL1) | (0x1 << PS1));
+    // // toggle red
+    // PORT10_OMR |= ((0x1 << PCL1) | (0x1 << PS1));
+
+    // toggle blue
+    PORT10_OMR |= ((0x1 << PCL2) | (0x1 << PS2));
 }
 
 void init_LED(void) {
-    // reset pc1 in port 10 IOCR0 register
+
+    // red 
+    // // reset pc1 in port 10 IOCR0 register
     PORT10_IOCR0 &= ~((0x1F) << PC1);
 
-    // set pc1 to push-pull mode in port10 IOCR reg
-    PORT10_IOCR0 |= ((0x10) << PC1);
+    // // set pc1 to push-pull mode in port10 IOCR reg
+    // PORT10_IOCR0 |= ((0x10) << PC1);
+
+    // blue
+    PORT10_IOCR0 &= ~((0x1F) << PC2);   // reset pc2 in port 10 IOCR0 register
+    PORT10_IOCR0 |= ((0x10) << PC2);    // set pc2 to push-pull mode in port10 IOCR reg
 }
 
 void init_switch(void) {
-    // reset pc1 in port 2 IOCR0 register
-    PORT2_IOCR0 &= ~((0x1F) << PC1);
 
-    // set pc1 to push-pull mode in port2 IOCR reg
-    PORT2_IOCR0 |= ((0x02) << PC1);
+    // switch 1 - D2 - P2.0
+    PORT2_IOCR0 &= ~((0x1F) << PC0);    // reset pc0 in port2 iocr0 reg
+    PORT2_IOCR0 |= ((0x02) << PC0);     // set pc0 to input mode in port2 IOCR reg
+
+    // switch 2 - D3 - P2.1
+    // PORT2_IOCR0 &= ~((0x1F) << PC1);    // reset pc1 in port2 iocr0 reg
+    // PORT2_IOCR0 |= ((0x02) << PC1);     // set pc1 to input mode in port2 IOCR reg
 }
 
 void init_ERU(void) {
     //ERU; External Request Unit  setting
-    SCU_EICR1 &= ~(0x7 << EXIS0);           // clear input source selection field
-    SCU_EICR1 |= (0x1 << EXIS0);            // select P02.1 as ERU input source
 
-    SCU_EICR1 |= (0x1 << FEN0);             // Enable falling-edge detection
-    SCU_EICR1 |= (0x1 << EIEN0);            // Endable event generation for input channel
+    // switch 1 - D2 - P2.0
+    SCU_EICR1 &= ~(0x7 << EXIS1);           // clear input source selection field
+    SCU_EICR1 |= (0x2 << EXIS1);            // select P02.0 as ERU input source // 0x2 represents the third input
 
-    SCU_EICR1 &= ~(0x7 << INP0);            // route event to output channel 0
+    SCU_EICR1 |= (0x1 << FEN1);             // Enable falling-edge detection
+    SCU_EICR1 |= (0x1 << EIEN1);            // Enable event generation for input channel
+
+    SCU_EICR1 &= ~(0x7 << INP1);            // route event to output channel 0
+    // no need to set INP1 to 0, since it is already 0 by default
 
     SCU_IGCR0 &= ~(0x3 << IGP0);            // clear gating config for output channel 0
-    SCU_IGCR0 |= (0x1 << IGP0);             // activate interrupt ouput when trigger occurs
+    SCU_IGCR0 |= (0x1 << IGP0);             // activate interrupt output when trigger occurs
 
+    // // switch 2 - D3 - P2.1
+    // SCU_EICR1 &= ~(0x7 << EXIS0);           // clear input source selection field
+    // SCU_EICR1 |= (0x1 << EXIS0);            // select P02.1 as ERU input source
+
+    // SCU_EICR1 |= (0x1 << FEN0);             // Enable falling-edge detection
+    // SCU_EICR1 |= (0x1 << EIEN0);            // Enable event generation for input channel
+
+    // SCU_EICR1 &= ~(0x7 << INP0);            // route event to output channel 0
+
+    // SCU_IGCR0 &= ~(0x3 << IGP0);            // clear gating config for output channel 0
+    // SCU_IGCR0 |= (0x1 << IGP0);             // activate interrupt output when trigger occurs
 
     // SRC; Service Request Control setting
     SRC_SCU_ERU0 &= ~(0xFF);                // clear service request prioirty field
-    SRC_SCU_ERU0 |= (0xF);                  // set interrupr priority to 0x10(?)
+    SRC_SCU_ERU0 |= (0xF);                  // set interrupr priority to 0x15
 
     SRC_SCU_ERU0 |= (1 << SRE);             // enable service request generation
     SRC_SCU_ERU0 &= ~(0x3 << TOS);          // route service request to CPU0
