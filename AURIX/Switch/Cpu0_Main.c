@@ -64,7 +64,6 @@ void init_switch(void) {
     PORT2_IOCR0 &= ~((0x1F) << PC1);    // reset pc0 in port2 iocr0 reg
 
     PORT2_IOCR0 |= ((0x02) << PC1);     // set pc0 to push-pull mod in port2 iocr0 reg
-
 }
 
 unsigned int read_switch(void) {
