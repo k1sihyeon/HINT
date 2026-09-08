@@ -63,7 +63,6 @@
 #define FEN1                    24
 #define EIEN1                   27
 #define INP1                    28
-#define IGP1                    30
 
 #define SRC_BASE_ADDRESS        (0xF0038000)
 #define SRC_SCU_ERU0            (*(volatile unsigned int *)(SRC_BASE_ADDRESS + 0xCD4))
