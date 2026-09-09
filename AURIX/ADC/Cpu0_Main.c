@@ -28,10 +28,147 @@
 #include "IfxCpu.h"
 #include "IfxScuWdt.h"
 
+/* ============================================================
+ * RGB LED Registers
+ * ============================================================ */
+#define PORT2_BASE_ADDRESS          (0xF003A200)
+#define PORT2_IOCR4                 (*(volatile unsigned int *)(PORT2_BASE_ADDRESS + 0x14))
+#define PORT2_OUTPUT                (*(volatile unsigned int *)(PORT2_BASE_ADDRESS))
+
+#define PORT10_BASE_ADDRESS         (0xF003B000)
+#define PORT10_IOCR0                (*(volatile unsigned int *)(PORT10_BASE_ADDRESS + 0x10))
+#define PORT10_IOCR4                (*(volatile unsigned int *)(PORT10_BASE_ADDRESS + 0x14))
+#define PORT10_OUTPUT               (*(volatile unsigned int *)(PORT10_BASE_ADDRESS))
+
+/* Field bit positions of RGB LED Registers */
+#define PC3                         27
+#define PC5                         11
+#define PC7                         27
+#define P3                          3
+#define P5                          5
+#define P7                          7
+
+/* ============================================================
+ * LED Registers
+ * ============================================================ */
+#define PC1                         11
+#define PC2                         19
+#define P1                          1
+#define P2                          2
+
+
+/* ============================================================
+ * Versatile Analog-to-Digital Converter Registers
+ * ============================================================ */
+#define VADC_BASE_ADDRESS           (0xF0020000)
+
+#define VADC_CLC                    (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x000))
+#define VADC_GLOBCFG                (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x080))
+#define VADC_G4ARBCFG               (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x1480))
+#define VADC_G4ARBPR                (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x1484))
+#define VADC_G4ICLASS0              (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x14A0))
+#define VADC_G4QMR0                 (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x1504))
+#define VADC_G4QINR0                (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x1510))
+#define VADC_G4CHCTR7               (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x161C))
+#define VADC_G4RES1                 (*(volatile unsigned int *)(VADC_BASE_ADDRESS + 0x1704))
+
+/* Field bit positions of VADC Registers */
+#define DISS                        1
+#define DISR                        0
+
+#define ANONC                       0
+#define ASEN0                       24
+#define CSM0                        3
+#define PRIO0                       0
+
+#define CMS                         8
+#define STCS                        0
+
+#define FLUSH                       10
+#define TREV                        9
+#define ENGT                        0
+#define RF                          5
+#define REQCHNR                     0
+
+#define RESPOS                      21
+#define RESREG                      16
+#define ICLSEL                      0
+
+#define VF                          31
+#define RESULT                      0
+
+
+/* ============================================================
+ * System Control Unit Registers
+ * ============================================================ */
+#define SCU_BASE_ADDRESS            (0xF0036000)
+#define SCU_WDTCPU0CON0             (*(volatile unsigned int *)(SCU_BASE_ADDRESS + 0x100))
+
+/* Field bit positions of SCU Registers */
+#define LCK                         1
+#define ENDINIT                     0
+
+/*
+    PWM
+*/
+// Generic Timer Module (GTM) registers
+#define GTM_BASE_ADDRESS        (0xF0100000)
+#define GTM_CLC                 (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x9FD00))
+#define GTM_TOUTSEL6            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x9FD48))
+
+#define DISS                    1
+#define DISR                    0
+#define SEL7                    14
+
+// Generic Timer Module (GTM) - Clock Management Unit (CMU) registers
+#define GTM_CMU_CLK_EN          (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x00300))
+#define GTM_CMU_FXCLK_CTRL      (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x00344))
+
+#define EN_FXCLK                22
+#define FXCLK_SEL               0
+
+// Generic Timer Module (GTM) - Timer Output Module (TOM) registers - TOM0, Channel 1 - Led PWM
+#define GTM_TOM0_TGC0_GLB_CTRL      (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08030))
+#define GTM_TOM0_TGC0_ENDIS_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08070))
+#define GTM_TOM0_TGC0_OUTEN_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08078))
+#define GTM_TOM0_TGC0_FUPD_CTRL     (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08038))
+
+#define GTM_TOM0_CH1_CTRL           (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08040))
+#define GTM_TOM0_CH1_SR0            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08044))
+#define GTM_TOM0_CH1_SR1            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08048))
+
+#define UPEN_CTRL1              18
+#define HOST_TRIG               0
+#define ENDIS_CTRL1             2
+#define OUTEN_CTRL1             2
+#define RSTCN0_CH1              18
+#define FUPD_CTRL1              2
+#define CLK_SRC_SR              12
+#define SL                      11
+
+
+
+/* ============================================================
+ * Function Prototypes
+ * ============================================================ */
+void init_LED(void);
+void init_RGBLED(void);
+void init_VADC(void);
+void init_GTM_TOM0_PWM(void);
+
+void VADC_start_conversion(void);
+unsigned int VADC_read_result(void);
+
 IfxCpu_syncEvent cpuSyncEvent = 0;
+
+/* ============================================================
+ * Main Function
+ * ============================================================ */
 
 void core0_main(void)
 {
+    unsigned int adc_result;
+
     IfxCpu_enableInterrupts();
     
     /* !!WATCHDOG0 AND SAFETY WATCHDOG ARE DISABLED HERE!!
@@ -43,8 +180,306 @@ void core0_main(void)
     /* Wait for CPU sync event */
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
+
+    // init
+    init_LED();
+    init_RGBLED();
+    init_VADC();
+    init_GTM_TOM0_PWM();
         
     while(1)
     {
+        // Start VADC conversion
+        VADC_start_conversion();
+
+        // Read VADC result
+        adc_result = VADC_read_result();
+
+        // Use the adc_result for further processing or control logic
+        // ADC range: 0 ~ 4095
+
+        // // Control RGB LED based on ADC result
+        // if (adc_result >= 3096) {
+        //     // all LEDs on
+        //     PORT2_OUTPUT |= (1u << P7);      // Turn on Red LED
+        //     PORT10_OUTPUT |= (1u << P5);     // Turn on Green LED
+        //     PORT10_OUTPUT |= (1u << P3);     // Turn on Blue LED
+        // }
+        // else if (adc_result >= 2048) {
+        //     // Green and Blue LEDs on
+        //     PORT2_OUTPUT &= ~(1u << P7);     // Turn off Red LED
+        //     PORT10_OUTPUT |= (1u << P5);     // Turn on Green LED
+        //     PORT10_OUTPUT |= (1u << P3);     // Turn on Blue LED
+        // }
+        // else if (adc_result >= 1024) {
+        //     // only Blue LED on
+        //     PORT2_OUTPUT &= ~(1u << P7);     // Turn off Red LED
+        //     PORT10_OUTPUT &= ~(1u << P5);    // Turn off Green LED
+        //     PORT10_OUTPUT |= (1u << P3);     // Turn on Blue LED
+        // }
+        // else {
+        //     // all LEDs off
+        //     PORT2_OUTPUT &= ~(1u << P7);     // Turn off Red LED
+        //      PORT10_OUTPUT &= ~(1u << P5);    // Turn off Green LED
+        //      PORT10_OUTPUT &= ~(1u << P3);    // Turn off Blue LED
+        //  }
+
+        // Control LED PWM based on ADC result
+        // ADC range: 0 ~ 4095, PWM duty cycle range: 0 ~ 12500
+        unsigned int pwm_duty_cycle = (adc_result * 12500) / 4095;      // Scale ADC result to PWM duty cycle range
+        
+        if (pwm_duty_cycle > 12500) {
+            pwm_duty_cycle = 12500;      // Limit PWM duty cycle to maximum value
+        }
+
+        if (pwm_duty_cycle < 0) {
+            pwm_duty_cycle = 0;          // Limit PWM duty cycle to minimum value
+        }
+        
+        GTM_TOM0_CH1_SR1 = pwm_duty_cycle;      // Update PWM
+
     }
+}
+
+
+/* ============================================================
+ * LED Initialization
+ * ============================================================ */
+void init_LED(void) {
+    // Initialize LED pins as output
+    PORT10_IOCR0 &= ~((0x1F) << PC1);   // reset pc1 in port 10 IOCR0 register
+    // PORT10_IOCR0 |= ((0x10) << PC1);    // set pc1 to push-pull mode in port10 IOCR register
+    PORT10_IOCR0 |= ((0x11) << PC1);    // set pc1 to push-pull mode in port10 IOCR register
+
+    PORT10_IOCR0 &= ~((0x1F) << PC2);   // reset pc2 in port 10 IOCR0 register
+    PORT10_IOCR0 |= ((0x10) << PC2);    // set pc2 to push-pull mode in port10 IOCR register
+
+    // Set the output registers to 0 to turn off the LEDs
+    // PORT10_OUTPUT &= ~(1u << P1);       // Turn off Red LED
+    PORT10_OUTPUT &= ~(1u << P2);       // Turn off Blue LED
+}
+
+/* ============================================================
+ * RGB LED Initialization
+ * ============================================================ */
+void init_RGBLED(void) {
+    PORT2_IOCR4 &= ~((0x1F) << PC7);        // reset pc7 in port 2 IOCR4 register
+    PORT2_IOCR4 |= ((0x10) << PC7);         // set pc7 to push-pull mode in port 2 IOCR4 register
+
+    PORT10_IOCR4 &= ~((0x1F) << PC5);       // reset pc5 in port 10 IOCR0 register
+    PORT10_IOCR4 |= ((0x10) << PC5);        // set pc5 to push-pull mode in port 10 IOCR0 register
+
+    PORT10_IOCR0 &= ~((0x1F) << PC3);       // reset pc3 in port 10 IOCR0 register
+    PORT10_IOCR0 |= ((0x10) << PC3);        // set pc3 to push-pull mode in port 10 IOCR0 register
+
+    // Set the output registers to 0 to turn off the LEDs
+    PORT2_OUTPUT &= ~(1u << P7);
+    PORT10_OUTPUT &= ~(1u << P5);
+    PORT10_OUTPUT &= ~(1u << P3);
+}
+
+/* ============================================================
+ * VADC Initialization
+ * ============================================================ */
+void init_VADC(void)
+{
+    // Clear ENDINIT protection to allow modification of protected registers
+
+    // Password Access to unlock CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 = 
+        ((SCU_WDTCPU0CON0 ^ 0xFC) & ~(1 << LCK))
+        | (1 << ENDINIT);
+
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) != 0);      // wait until to unlock CPU0 WDT Control Register 0
+
+    // Modify Access to clear the ENDINIT bit in CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 =
+        ((SCU_WDTCPU0CON0 ^ 0xFC) | (1 << LCK))
+        & ~(1 << ENDINIT);
+
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) == 0);      // wait until to clear the ENDINIT bit in CPU0 WDT Control Register 0
+
+
+    VADC_CLC &= ~(1u << DISR);                          // Enable VADC module clock by clearing the DISS bit in the VADC_CLC register
+
+    // Password Access to unlock CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 =
+        ((SCU_WDTCPU0CON0 ^ 0xFC) & ~(1 << LCK))
+        | (1 << ENDINIT);
+
+    while ((SCU_WDTCPU0CON0 & (1u << LCK)) != 0);      // wait until to unlock CPU0 WDT Control Register 0
+
+    // Modify Access to set the ENDINIT bit in CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 =
+        ((SCU_WDTCPU0CON0 ^ 0xFC) | (1 << LCK))
+        | (1 << ENDINIT);
+
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) == 0);
+
+    // Wait until the DISS bit in the VADC_CLC register is cleared, indicating that the VADC module is enabled
+    while ((VADC_CLC & (1 << DISS)) != 0);
+
+
+    // Configure Group 4 Arbitration to use the highest priority for Request Source 0, wait-for-start conversion mode, and enable Arbitration Source Input 0
+
+    /* Set Request Source 0 to highest priority */
+    VADC_G4ARBPR |= ((0x3u) << PRIO0);
+
+    /* Select wait-for-start conversion mode */
+    VADC_G4ARBPR &= ~(1u << CSM0);
+
+    /* Enable Arbitration Source Input 0 */
+    VADC_G4ARBPR |= (1u << ASEN0);
+
+
+    /* --------------------------------------------------------
+     * Configure Queue
+     * -------------------------------------------------------- */
+
+    /* Clear Queue gate-control field */
+    VADC_G4QMR0 &= ~((0x3u) << ENGT);
+
+    /* Enable Queue conversion requests */
+    VADC_G4QMR0 |= ((0x1u) << ENGT);
+
+    /* Remove all existing Queue entries */
+    VADC_G4QMR0 |= (1u << FLUSH);
+
+
+    /* --------------------------------------------------------
+     * Configure converter
+     * -------------------------------------------------------- */
+
+    /* Set Group 4 converter to normal operation */
+    VADC_G4ARBCFG |= ((0x3u) << ANONC);
+
+    /* Select 12-bit standard conversion mode */
+    VADC_G4ICLASS0 &= ~((0x7u) << CMS);
+
+
+    /* --------------------------------------------------------
+     * Configure Channel 7
+     * -------------------------------------------------------- */
+
+    /* Store Channel 7 result in right-aligned format */
+    VADC_G4CHCTR7 |= (1u << RESPOS);
+
+    /* Clear result-register selection field */
+    VADC_G4CHCTR7 &= ~((0xFu) << RESREG);
+
+    /* Store Channel 7 result in Group Result Register 1 */
+    VADC_G4CHCTR7 |= (1u << RESREG);
+
+    /* Select Group-specific Input Class 0 */
+    VADC_G4CHCTR7 &= ~((0x3u) << ICLSEL);
+}
+
+/* ============================================================
+ * Start Single VADC Conversion
+ * ============================================================ */
+void VADC_start_conversion(void)
+{
+    /* Reset queue channel selection bits */
+    VADC_G4QINR0 &= ~0x1Fu;
+
+    /* Select Group 4 Channel 7 */
+    VADC_G4QINR0 |= 0x07u;
+
+    /* Configure queue entry for a single conversion */
+    VADC_G4QINR0 &= ~(1u << RF);
+
+    /* Software trigger */
+    VADC_G4QMR0 |= (1u << TREV);
+}
+
+
+/* ============================================================
+ * Read VADC Result
+ * ============================================================ */
+unsigned int VADC_read_result(void)
+{
+    unsigned int result;
+
+    /* Wait until result-valid flag is set */
+    while ((VADC_G4RES1 & (1u << VF)) == 0u)
+    {
+    }
+
+    /* Read 12-bit ADC conversion result */
+    result = VADC_G4RES1 & (0xFFFu << RESULT);
+
+    return result;
+}
+
+/*
+ * Initialize the Generic Timer Module (GTM) Timer Output Module (TOM) for PWM
+ */
+void init_GTM_TOM0_PWM(void) {
+// Password Access to unlock CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 = ((SCU_WDTCPU0CON0 ^ 0xFC) & ~(1 << LCK)) | (1 << ENDINIT);    // clear LCK bit and set ENDINIT bit
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) != 0);    // wait until to unlock CPU0 WDT Control Register 0
+    
+    // Modify Access to clear the ENDINIT bit in CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 = ((SCU_WDTCPU0CON0 ^ 0xFC) | (1 << LCK)) & ~(1 << ENDINIT);        // set LCK bit and clear ENDINIT bit
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) == 0);    // wait until to clear the ENDINIT bit in CPU0 WDT Control Register 0
+
+    // Enable GTM module
+    GTM_CLC &= ~(1 << DISR);                        // clear DISS bit to enable GTM module
+
+    // Password Access to unlock CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 = ((SCU_WDTCPU0CON0 ^ 0xFC) & ~(1 << LCK)) | (1 << ENDINIT);    // clear LCK bit and set ENDINIT bit
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) != 0);    // wait until to unlock CPU0 WDT Control Register 0
+
+    // Modify Access to set the ENDINIT bit in CPU0 WDT Control Register 0
+    SCU_WDTCPU0CON0 = ((SCU_WDTCPU0CON0 ^ 0xFC) | (1 << LCK)) | (1 << ENDINIT);     // set LCK bit and set ENDINIT bit
+    while ((SCU_WDTCPU0CON0 & (1 << LCK)) == 0);    // wait until to set the ENDINIT bit in CPU0 WDT Control Register 0
+
+    while ((GTM_CLC & (1 << DISS)) != 0);           // wait until GTM module is enabled
+
+    // GTM Fixed Clock (FXCLK) Configuration
+    GTM_CMU_FXCLK_CTRL &= ~((0xF) << FXCLK_SEL);    // Input clock of CMU_FXCLK     // clear FXCLK_SEL bits to select FXCLK source as PLL1
+    GTM_CMU_CLK_EN |= ((0x2) << EN_FXCLK);          // Enable all CMU_FXCLK         // set EN_FXCLK bit to enable FXCLK
+
+    // Allow Shadow register update 
+    GTM_TOM0_TGC0_GLB_CTRL |= ((0x2) << UPEN_CTRL1);    // Enable update of TOM0 channel 1 shadow register
+
+    GTM_TOM0_TGC0_FUPD_CTRL |= ((0x2) << FUPD_CTRL1);    // Enable force update of TOM0 channel 1
+    GTM_TOM0_TGC0_FUPD_CTRL |= ((0x2) << RSTCN0_CH1);    // Reset CN0 of TOM0 channel 1 on force update
+
+    /*
+     * TOM0 CH2 비활성화 후 설정
+     * ENDIS_CTRL2 = 1 : channel disable request
+     * OUTEN_CTRL2 = 1 : channel output disable request
+     */
+
+    GTM_TOM0_TGC0_ENDIS_CTRL |= ((0x2) << ENDIS_CTRL1);    // Disable TOM0 channel 1
+    GTM_TOM0_TGC0_OUTEN_CTRL |= ((0x2) << OUTEN_CTRL1);    // Disable TOM0 channel 1 output
+
+
+    /*
+     * TOM0 CH1 Control 설정
+     * 
+     * CLK_SRC_SR   = 0 : FXCLK0 사용
+     * SL           = 1 : PWM active level high, Shadow register 사용
+     */
+
+    GTM_TOM0_CH1_CTRL |= (1 << SL);                 // High signal level for duty cycle // set SL bit to select PWM active level high and use shadow register
+
+    GTM_TOM0_CH1_CTRL &= ~((0x7) << CLK_SRC_SR);    // Clock source : CMU_FXCLK(1) = 6250 kHz // clear CLK_SRC_SR bits to select FXCLK0 as clock source
+    GTM_TOM0_CH1_CTRL |= ((0x1) << CLK_SRC_SR);     // Clock source : CMU_FXCLK(1) = 6250 kHz // set CLK_SRC_SR bits to select FXCLK0 as clock source
+
+    /*
+     * PWM 주기 및 듀티비 설정
+     * CM0 = PWM period
+     * CM1 = PWM duty cycle // high 구간 길이
+     */
+    GTM_TOM0_CH1_SR0 = 12500;                        // PWM freq. = 6250 kHz / 12500 = 500Hz
+    // GTM_TOM0_CH1_SR1 = 6250;                         // PWM duty cycle = 50% (high 구간 길이)
+    GTM_TOM0_CH1_SR1 = 12500;                         // PWM duty cycle = 25% (high 구간 길이)
+
+    GTM_TOUTSEL6 &= ~((0x3) << SEL7);                    // Select TOM0_CH1 as output source for TOUT6 // clear SEL7 bits to select TOM0_CH1 as output source for TOUT6
+
+    // Host trigger shadow register update
+    GTM_TOM0_TGC0_GLB_CTRL |= ((0x1) << HOST_TRIG);    // Trigger shadow register update for TOM0 channel 1
+
 }
