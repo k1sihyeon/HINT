@@ -222,11 +222,29 @@
 #define GTM_TOM0_CH1_SR1            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08048))
 
 #define UPEN_CTRL1              18
-#define HOST_TRIG               0
 #define ENDIS_CTRL1             2
 #define OUTEN_CTRL1             2
-#define RSTCN0_CH1              18
 #define FUPD_CTRL1              2
+#define RSTCN0_CH1              18
+
+// Generic Timer Module (GTM) - Timer Output Module (TOM) registers - TOM0, Channel 11 - buzzer PWM
+#define GTM_TOM0_TGC1_GLB_CTRL      (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08230))
+#define GTM_TOM0_TGC1_ENDIS_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08270))
+#define GTM_TOM0_TGC1_OUTEN_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08278))
+#define GTM_TOM0_TGC1_FUPD_CTRL     (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08238))
+
+// TOM0 Channel 11 레지스터 주소
+#define GTM_TOM0_CH11_CTRL          (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C0))
+#define GTM_TOM0_CH11_SR0           (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C4))
+#define GTM_TOM0_CH11_SR1           (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C8))
+
+#define UPEN_CTRL11                 22
+#define ENDIS_CTRL11                6   
+#define OUTEN_CTRL11                6   
+#define FUPD_CTRL11                 6   
+#define RSTCN0_CH11                 22
+
+#define HOST_TRIG               0
 #define CLK_SRC_SR              12
 #define SL                      11
 
@@ -389,6 +407,7 @@ void core0_main(void)
                         // center -> left
                         if (g_sw2_flag) {   
                             // opposite direction, buzzer on
+                            // GTM_TOM0_CH11_SR1 
                         }
                         current_state = STATE_LEFT;
                     }
@@ -396,6 +415,7 @@ void core0_main(void)
                         // center -> right
                         if (g_sw1_flag) {
                             // opposite direction, buzzer on
+                            // GTM_TOM0_CH11_SR1
                         }
                         current_state = STATE_RIGHT;
                     }
@@ -713,6 +733,8 @@ void init_GTM_TOM0_PWM(void) {
     GTM_TOM0_CH11_CTRL |= ((0x1) << CLK_SRC_SR);     
 
     // 부저 PWM 주기(음정) 및 듀티비(볼륨) 초기 설정 (약 1kHz)
-    GTM_TOM0_CH11_SR0 = 6250;                        
-    GTM_TOM0_CH11_SR1 = 3125;
+    GTM_TOM0_CH11_SR0 = 6250;       // 주기 설정 (약 1kHz)                    
+    GTM_TOM0_CH11_SR1 = 0;          // 듀티비 설정 (0% 듀티비, 부저 OFF)
+
+    GTM_TOM0_TGC1_GLB_CTRL |= ((0x1) << HOST_TRIG);
 }
