@@ -61,20 +61,35 @@
 #define GTM_TOM0_CH1_SR0            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08044))
 #define GTM_TOM0_CH1_SR1            (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08048))
 
-// Generic Timer Module (GTM) - Timer Output Module (TOM) registers - TOM?, Channel 11 - buzzer PWM
-// 0~7 / 8~14 / 15
-#define GTM_TOM0_TGC1_GLB_CTRL      (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x080B0))
-
-
-
-
-
 #define UPEN_CTRL1              18
-#define HOST_TRIG               0
 #define ENDIS_CTRL1             2
 #define OUTEN_CTRL1             2
-#define RSTCN0_CH1              18
 #define FUPD_CTRL1              2
+#define RSTCN0_CH1              18
+
+
+// Generic Timer Module (GTM) - Timer Output Module (TOM) registers - TOM0, Channel 11 - buzzer PWM
+// 0~7 / 8~14 / 15
+#define GTM_TOM0_TGC1_GLB_CTRL      (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08230))
+#define GTM_TOM0_TGC1_ENDIS_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08270))
+#define GTM_TOM0_TGC1_OUTEN_CTRL    (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08278))
+#define GTM_TOM0_TGC1_FUPD_CTRL     (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x08238))
+
+// TOM0 Channel 11 레지스터 주소 (0x08000 + 11 * 0x40 = 0x082C0)
+#define GTM_TOM0_CH11_CTRL          (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C0))
+#define GTM_TOM0_CH11_SR0           (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C4))
+#define GTM_TOM0_CH11_SR1           (*(volatile unsigned int *)(GTM_BASE_ADDRESS + 0x082C8))
+
+// TGC1(8~15) 그룹 내에서 CH11의 인덱스는 3 (8=0, 9=1, 10=2, 11=3)
+// 각 비트 필드 위치 계산: 하위 제어는 index*2, 상위 제어는 16 + index*2
+#define UPEN_CTRL11                 22  // 16 + (3 * 2)
+#define ENDIS_CTRL11                6   // (3 * 2)
+#define OUTEN_CTRL11                6   // (3 * 2)
+#define FUPD_CTRL11                 6   // (3 * 2)
+#define RSTCN0_CH11                 22  // 16 + (3 * 2)
+
+// gtm common
+#define HOST_TRIG               0
 #define CLK_SRC_SR              12
 #define SL                      11
 
@@ -150,10 +165,18 @@ void Stm0_Compare0_Isr(void) {
 
     if (g_isOver == 0) {
         GTM_TOM0_CH1_SR1 += 125; // 밝기 증가
+        // 🔥 추가: 부저 음정 높이기 (주기를 짧게)
+        // 너무 주기가 짧아지는 것을 막기 위해 하한선 설정
+        if(GTM_TOM0_CH11_SR0 > 2000) GTM_TOM0_CH11_SR0 -= 50;
+
     } else {
         GTM_TOM0_CH1_SR1 -= 125; // 밝기 감소
+        // 🔥 추가: 부저 음정 낮추기 (주기를 길게)
+        if(GTM_TOM0_CH11_SR0 < 8000) GTM_TOM0_CH11_SR0 += 50;
     }
 
+    // 부저의 볼륨(듀티비)은 항상 현재 주기(SR0)의 절반(50%)을 유지
+    GTM_TOM0_CH11_SR1 = GTM_TOM0_CH11_SR0 / 2;
 }
 
 int core0_main(void)
@@ -189,7 +212,7 @@ void init_LED(void) {
 
 void init_Buzzer(void) {
     PORT2_IOCR0 &= ~((0x1F) << PC3);    // reset pc3 in port 2 IOCR0 register
-    PORT2_IOCR0 |= ((0x10) << PC3);     // set pc3 to push-pull mode in port2 IOCR register
+    PORT2_IOCR0 |= ((0x11) << PC3);     // set pc3 to alt. function 1 mode in port2 IOCR register
 }
 
 void init_GTM_TOM0_PWM(void) {
@@ -218,6 +241,8 @@ void init_GTM_TOM0_PWM(void) {
     GTM_CMU_FXCLK_CTRL &= ~((0xF) << FXCLK_SEL);    // Input clock of CMU_FXCLK     // clear FXCLK_SEL bits to select FXCLK source as PLL1
     GTM_CMU_CLK_EN |= ((0x2) << EN_FXCLK);          // Enable all CMU_FXCLK         // set EN_FXCLK bit to enable FXCLK
 
+
+    ///////////// LED PWM - TOM_CH1 Configuration
     // Allow Shadow register update 
     GTM_TOM0_TGC0_GLB_CTRL |= ((0x2) << UPEN_CTRL1);    // Enable update of TOM0 channel 1 shadow register
 
@@ -257,6 +282,28 @@ void init_GTM_TOM0_PWM(void) {
 
     GTM_TOUTSEL6 &= ~((0x3) << SEL7);                    // Select TOM0_CH1 as output source for TOUT6 // clear SEL7 bits to select TOM0_CH1 as output source for TOUT6
 
+    ///////////// Buzzer PWM
+    // Shadow register 및 Force Update 허용
+    GTM_TOM0_TGC1_GLB_CTRL |= ((0x2) << UPEN_CTRL11);   
+    GTM_TOM0_TGC1_FUPD_CTRL |= ((0x2) << FUPD_CTRL11);   
+    GTM_TOM0_TGC1_FUPD_CTRL |= ((0x2) << RSTCN0_CH11);   
+
+    // CH11 활성화 및 출력 활성화 (0x2 = Enable)
+    GTM_TOM0_TGC1_ENDIS_CTRL &= ~((0x3) << ENDIS_CTRL11);
+    GTM_TOM0_TGC1_ENDIS_CTRL |= ((0x2) << ENDIS_CTRL11); 
+    GTM_TOM0_TGC1_OUTEN_CTRL &= ~((0x3) << OUTEN_CTRL11);
+    GTM_TOM0_TGC1_OUTEN_CTRL |= ((0x2) << OUTEN_CTRL11); 
+
+    // CH11 Control 설정 (Active High, FXCLK0 사용)
+    GTM_TOM0_CH11_CTRL |= (1 << SL);                 
+    GTM_TOM0_CH11_CTRL &= ~((0x7) << CLK_SRC_SR);    
+    GTM_TOM0_CH11_CTRL |= ((0x1) << CLK_SRC_SR);     
+
+    // 부저 PWM 주기(음정) 및 듀티비(볼륨) 초기 설정 (약 1kHz)
+    GTM_TOM0_CH11_SR0 = 6250;                        
+    GTM_TOM0_CH11_SR1 = 3125;
+
+    //////////////////// set HOST_TRIG bit to trigger shadow register update for TOM0 channel 1
     // Host trigger shadow register update
     GTM_TOM0_TGC0_GLB_CTRL |= ((0x1) << HOST_TRIG);    // Trigger shadow register update for TOM0 channel 1
 }
