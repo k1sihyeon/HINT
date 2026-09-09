@@ -242,7 +242,7 @@ void init_GTM_TOM0_PWM(void) {
     GTM_CMU_CLK_EN |= ((0x2) << EN_FXCLK);          // Enable all CMU_FXCLK         // set EN_FXCLK bit to enable FXCLK
 
 
-    ///////////// LED PWM - TOM_CH1 Configuration
+    /////////////////////////////////////////////////////////////// LED PWM - TOM_CH1 Configuration
     // Allow Shadow register update 
     GTM_TOM0_TGC0_GLB_CTRL |= ((0x2) << UPEN_CTRL1);    // Enable update of TOM0 channel 1 shadow register
 
@@ -282,7 +282,7 @@ void init_GTM_TOM0_PWM(void) {
 
     GTM_TOUTSEL6 &= ~((0x3) << SEL7);                    // Select TOM0_CH1 as output source for TOUT6 // clear SEL7 bits to select TOM0_CH1 as output source for TOUT6
 
-    ///////////// Buzzer PWM
+    /////////////////////////////////////////////////////////// Buzzer PWM
     // Shadow register 및 Force Update 허용
     GTM_TOM0_TGC1_GLB_CTRL |= ((0x2) << UPEN_CTRL11);   
     GTM_TOM0_TGC1_FUPD_CTRL |= ((0x2) << FUPD_CTRL11);   
@@ -306,6 +306,7 @@ void init_GTM_TOM0_PWM(void) {
     //////////////////// set HOST_TRIG bit to trigger shadow register update for TOM0 channel 1
     // Host trigger shadow register update
     GTM_TOM0_TGC0_GLB_CTRL |= ((0x1) << HOST_TRIG);    // Trigger shadow register update for TOM0 channel 1
+    // GTM_TOM0_TGC1_GLB_CTRL |= ((0x1) << HOST_TRIG);
 }
 
 void Init_Timer_1sec_Interrupt(void) {
