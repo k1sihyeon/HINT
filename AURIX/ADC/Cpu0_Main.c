@@ -29,7 +29,7 @@
 #include "IfxScuWdt.h"
 
 /* ============================================================
- * RGB LED Registers
+ * RGB / LED Registers
  * ============================================================ */
 #define PORT2_BASE_ADDRESS          (0xF003A200)
 #define PORT2_IOCR4                 (*(volatile unsigned int *)(PORT2_BASE_ADDRESS + 0x14))
@@ -48,9 +48,7 @@
 #define P5                          5
 #define P7                          7
 
-/* ============================================================
- * LED Registers
- * ============================================================ */
+// Field bit positions of LED Registers
 #define PC1                         11
 #define PC2                         19
 #define P1                          1
