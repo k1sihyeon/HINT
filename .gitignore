@@ -6,7 +6,11 @@
 # ==========================================
 
 .ads/
-*/TriCore Debug (TASKING)/
+**/TriCore Debug (TASKING)/
+TriCore Debug (TASKING)/
+Libraries/
+Configurations/
+*.lsl
 
 # 1. Ignore Build Outputs (Compiler/Linker artifacts)
 # Usually generated under Debug, Release, or specific target configurations
