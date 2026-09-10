@@ -1,9 +1,19 @@
 */output/
 .vscode/
 
+# 라이센스 이슈 ㅠㅠ
+mobilgene/
+
+
 # ==========================================
 # mobilgene (AUTOSAR / Hyundai Autoever) .gitignore
 # ==========================================
+
+*.id
+*.c2v
+*.v2c
+*.h2h
+
 
 # ------------------------------------------
 # 1. Python & SCons Build Artifacts (mobilgene Toolchain)
