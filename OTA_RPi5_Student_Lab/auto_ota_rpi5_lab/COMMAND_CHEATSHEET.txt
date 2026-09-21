@@ -1,0 +1,17 @@
+Raspberry Pi quick commands
+---------------------------
+cd ~/auto_ota_rpi5_lab
+python3 common/set_server_ip.py <PC-IP>
+bash common/check_environment.sh
+
+Day2:
+python3 day2_basic_ota/reset_day2_vehicle.py
+python3 day2_basic_ota/vehicle/status.py
+python3 day2_basic_ota/vehicle/ecu_run.py
+python3 day2_basic_ota/ota_client_basic.py
+
+Day3:
+python3 day3_secure_ota/reset_day3.py
+python3 day3_secure_ota/vehicle/status.py
+python3 day3_secure_ota/vehicle/ecu_run.py
+python3 day3_secure_ota/secure_ota_client.py
