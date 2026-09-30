@@ -1,5 +1,7 @@
 */output/
 .vscode/
+*.out
+
 
 # 라이센스 이슈 ㅠㅠ
 mobilgene/
